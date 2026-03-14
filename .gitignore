@@ -1,0 +1,22 @@
+# Environment
+.env
+.venv
+venv
+env
+
+# ChromaDB persistence (optional: can commit empty or exclude)
+chroma_db/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+dist/
+build/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
