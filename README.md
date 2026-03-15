@@ -85,7 +85,7 @@ The server uses **stdio** by default. Configure your MCP client to start the ser
         │                      │
         ▼                      ▼
 ┌───────────────┐     ┌─────────────────┐
-│  PyMuPDF      │     │  ChromaDB        │
+│  PyMuPDF      │     │  ChromaDB       │
 │  (fitz)       │     │  (persistent)   │
 └───────────────┘     └────────┬────────┘
                                │
