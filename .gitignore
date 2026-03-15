@@ -4,6 +4,9 @@
 venv
 env
 
+# Data folder
+data/*
+
 # ChromaDB persistence (optional: can commit empty or exclude)
 chroma_db/
 
