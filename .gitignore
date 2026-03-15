@@ -5,7 +5,6 @@ venv
 env
 
 # Data folder
-data/*
 !data/.gitkeep
 
 # ChromaDB persistence (optional: can commit empty or exclude)
