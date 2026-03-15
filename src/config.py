@@ -1,29 +1,21 @@
-"""Configuration loaded from environment."""
 import os
 from pathlib import Path
-
 from dotenv import load_dotenv
 
 load_dotenv()
 
-# Path to folder containing PDF documents
-DOCUMENTS_PATH = Path(os.getenv("DOCUMENTS_PATH", "data")).resolve()
+BASE_DIR = Path(__file__).resolve().parent.parent
 
-# ChromaDB persistence directory
-CHROMA_PERSIST_DIR = Path(os.getenv("CHROMA_PERSIST_DIR", "chroma_db")).resolve()
+DOCUMENTS_PATH = Path(os.getenv("DOCUMENTS_PATH", BASE_DIR / "data"))
+CHROMA_PERSIST_DIR = Path(os.getenv("CHROMA_PERSIST_DIR", BASE_DIR / "chroma_db"))
 
-# OpenAI API key (required for LLM-generated answers)
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
-# Embedding model (sentence-transformers, runs locally)
-EMBEDDING_MODEL = "all-MiniLM-L6-v2"
+EMBEDDING_MODEL = "text-embedding-3-small"
+LLM_MODEL = "gpt-4o-mini"
 
-# Chunk size and overlap for document splitting
-CHUNK_SIZE = 800
-CHUNK_OVERLAP = 150
+CHUNK_SIZE = 1000
+CHUNK_OVERLAP = 200
 
-# Number of chunks to retrieve for each query
 TOP_K = 6
-
-# Chroma collection name
-COLLECTION_NAME = "nexla_documents"
+COLLECTION_NAME = "nexla_docs"

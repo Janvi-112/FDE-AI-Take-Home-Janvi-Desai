@@ -1,121 +1,113 @@
-"""Retrieval and answer generation with source attribution."""
-from typing import Any
+"""
+Retrieval + LLM answer generation
+"""
 
-from chromadb import PersistentClient
-from chromadb.config import Settings
-from openai import OpenAI
-from sentence_transformers import SentenceTransformer
+from typing import Dict, Any
+
+from langchain_openai import ChatOpenAI, OpenAIEmbeddings
+from langchain_community.vectorstores import Chroma
+from langchain_core.documents import Document
 
 from .config import (
     CHROMA_PERSIST_DIR,
-    COLLECTION_NAME,
-    OPENAI_API_KEY,
+    LLM_MODEL,
     EMBEDDING_MODEL,
     TOP_K,
+    COLLECTION_NAME
 )
 
 
-def get_collection():
-    """Return the ChromaDB collection (must exist from prior ingestion)."""
-    client = PersistentClient(path=str(CHROMA_PERSIST_DIR), settings=Settings(anonymized_telemetry=False))
-    try:
-        return client.get_collection(COLLECTION_NAME)
-    except Exception:
-        return None
+def load_vectorstore():
 
+    embeddings = OpenAIEmbeddings(model=EMBEDDING_MODEL)
 
-def retrieve(question: str, top_k: int = TOP_K) -> list[dict[str, Any]]:
-    """
-    Embed the question, search ChromaDB for relevant chunks, return list of
-    { content, document, page }.
-    """
-    collection = get_collection()
-    if collection is None or collection.count() == 0:
-        return []
-    model = SentenceTransformer(EMBEDDING_MODEL)
-    query_embedding = model.encode([question]).tolist()
-    results = collection.query(
-        query_embeddings=query_embedding,
-        n_results=top_k,
-        include=["documents", "metadatas"],
+    vectordb = Chroma(
+        persist_directory=str(CHROMA_PERSIST_DIR),
+        embedding_function=embeddings,
+        collection_name=COLLECTION_NAME
     )
-    out: list[dict[str, Any]] = []
-    if results["documents"] and results["documents"][0]:
-        for doc, meta in zip(results["documents"][0], results["metadatas"][0] or []):
-            out.append({
-                "content": doc,
-                "document": meta.get("document", "unknown"),
-                "page": meta.get("page", 0),
-            })
-    return out
+
+    return vectordb
 
 
-def answer_with_sources(question: str, chunks: list[dict[str, Any]]) -> dict[str, Any]:
-    """
-    Use OpenAI to generate a grounded answer from the retrieved chunks.
-    Returns { answer, sources } where sources is list of { document, page }.
-    """
-    if not OPENAI_API_KEY:
-        # Fallback: concatenate top chunk and say no LLM
-        if chunks:
-            c = chunks[0]
-            return {
-                "answer": (
-                    f"No OPENAI_API_KEY set. Here is the most relevant excerpt:\n\n{c['content'][:1500]}..."
-                ),
-                "sources": [{"document": c["document"], "page": c["page"]}],
-            }
-        return {"answer": "No relevant passages found and no LLM configured.", "sources": []}
+def retrieve(question: str):
 
-    context_parts = []
-    seen: set[tuple[str, int]] = set()
-    for c in chunks:
-        key = (c["document"], c["page"])
-        if key in seen:
-            continue
-        seen.add(key)
-        context_parts.append(
-            f"[Source: {c['document']}, page {c['page']}]\n{c['content']}"
+    vectordb = load_vectorstore()
+
+    retriever = vectordb.as_retriever(search_kwargs={"k": TOP_K})
+
+    docs = retriever.get_relevant_documents(question)
+
+    return docs
+
+
+def format_context(docs: list[Document]):
+
+    context = []
+
+    sources = []
+
+    for d in docs:
+
+        text = d.page_content
+        meta = d.metadata
+
+        doc_name = meta.get("document", "unknown")
+        page = meta.get("page", "unknown")
+
+        context.append(
+            f"[Source: {doc_name}, page {page}]\n{text}"
         )
-    context = "\n\n---\n\n".join(context_parts)
 
-    client = OpenAI(api_key=OPENAI_API_KEY)
-    response = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[
-            {
-                "role": "system",
-                "content": (
-                    "You are a precise assistant that answers questions using ONLY the provided document excerpts. "
-                    "Always cite the document name and page number (e.g. 'According to document X, page Y'). "
-                    "If the excerpts do not contain enough information, say so and do not invent details. "
-                    "Keep answers concise and grounded in the source text."
-                ),
-            },
-            {
-                "role": "user",
-                "content": f"Relevant excerpts:\n\n{context}\n\n---\n\nQuestion: {question}\n\nProvide a grounded answer with source attribution (document name and page).",
-            },
-        ],
+        sources.append({
+            "document": doc_name,
+            "page": page
+        })
+
+    return "\n\n---\n\n".join(context), sources
+
+
+def generate_answer(question: str, context: str):
+
+    llm = ChatOpenAI(
+        model=LLM_MODEL,
         temperature=0.2,
-        max_tokens=1024,
     )
-    answer_text = (response.choices[0].message.content or "").strip()
 
-    # Build unique sources list from chunks we used
-    sources = [{"document": c["document"], "page": c["page"]} for c in chunks]
+    prompt = f"""
+You are a document analysis assistant.
 
-    return {"answer": answer_text, "sources": sources}
+Answer the question using ONLY the provided document excerpts.
+
+Always cite the document name and page number.
+
+Context:
+{context}
+
+Question:
+{question}
+"""
+
+    response = llm.invoke(prompt)
+
+    return response.content
 
 
-def query_documents(question: str, top_k: int = TOP_K) -> dict[str, Any]:
-    """
-    Full pipeline: retrieve relevant chunks, then generate answer with sources.
-    """
-    chunks = retrieve(question, top_k=top_k)
-    if not chunks:
+def query_documents(question: str) -> Dict[str, Any]:
+
+    docs = retrieve(question)
+
+    if not docs:
         return {
-            "answer": "No relevant passages were found in the indexed documents for this question.",
-            "sources": [],
+            "answer": "No relevant documents found.",
+            "sources": []
         }
-    return answer_with_sources(question, chunks)
+
+    context, sources = format_context(docs)
+
+    answer = generate_answer(question, context)
+
+    return {
+        "answer": answer,
+        "sources": sources
+    }

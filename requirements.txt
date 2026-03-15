@@ -1,16 +1,10 @@
-# MCP server
-fastmcp>=3.0.0
-
-# PDF parsing
-pymupdf>=1.24.0
-
-# Embeddings & vector store
-chromadb>=0.4.22
-sentence-transformers>=2.2.0
-
-# LLM for grounded answers
-openai>=1.12.0
-
-# Utilities
-python-dotenv>=1.0.0
-pydantic>=2.0.0
+fastmcp
+langchain
+langchain-community
+langchain-openai
+chromadb
+pymupdf
+python-dotenv
+tiktoken
+sentence-transformers
+openai
