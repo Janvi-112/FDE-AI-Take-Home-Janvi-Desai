@@ -9,8 +9,10 @@ from langchain_chroma import Chroma
 from langchain_core.documents import Document
 from langchain_community.llms import HuggingFacePipeline
 from transformers import pipeline as hf_pipeline
+from groq import Groq
 
 from .config import (
+    GROQ_API_KEY,
     CHROMA_PERSIST_DIR,
     LLM_MODEL,
     EMBEDDING_MODEL,
@@ -18,6 +20,7 @@ from .config import (
     COLLECTION_NAME
 )
 
+_client = Groq(api_key=GROQ_API_KEY)
 
 def load_vectorstore():
 
@@ -67,14 +70,6 @@ def format_context(docs: list[Document]):
 
 
 def generate_answer(question: str, context: str):
-
-    pipeline = hf_pipeline(
-        "text-generation",
-        model=LLM_MODEL,
-        max_length=512,
-    )
-    llm = HuggingFacePipeline(pipeline=pipeline)
-
     prompt = f"""
         You are a document analysis assistant.
 
@@ -89,7 +84,12 @@ def generate_answer(question: str, context: str):
         {question}
     """
 
-    return llm.invoke(prompt)
+    response = _client.chat.completions.create(
+        model=LLM_MODEL,
+        messages=[{"role": "user", "content": prompt}],
+        max_tokens=512,
+    )
+    return response.choices[0].message.content
 
 
 def query_documents(question: str) -> Dict[str, Any]:
