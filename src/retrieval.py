@@ -7,8 +7,6 @@ from typing import Dict, Any
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_chroma import Chroma
 from langchain_core.documents import Document
-from langchain_community.llms import HuggingFacePipeline
-from transformers import pipeline as hf_pipeline
 from groq import Groq
 
 from .config import (

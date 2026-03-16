@@ -14,7 +14,6 @@ langchain-text-splitters>=0.0.9
 # Embeddings & LLMs
 sentence-transformers>=2.2.2
 transformers>=4.36.0
-accelerate>=0.22.0
 groq
 
 # Environment
