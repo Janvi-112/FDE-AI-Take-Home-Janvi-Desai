@@ -8,12 +8,12 @@ from typing import Dict, Any
 
 from langchain_community.document_loaders import PyMuPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_openai import OpenAIEmbeddings
-from langchain_community.vectorstores import Chroma
+from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_chroma import Chroma
 
 from .config import (
-    DOCUMENTS_PATH,
     CHROMA_PERSIST_DIR,
+    DOCUMENTS_PATH,
     EMBEDDING_MODEL,
     CHUNK_SIZE,
     CHUNK_OVERLAP,
@@ -48,16 +48,14 @@ def split_documents(documents):
 
 def build_vector_store(chunks):
 
-    embeddings = OpenAIEmbeddings(model=EMBEDDING_MODEL)
+    embeddings = HuggingFaceEmbeddings(model_name=EMBEDDING_MODEL)
 
     vectordb = Chroma.from_documents(
         chunks,
         embeddings,
-        persist_directory=str(CHROMA_PERSIST_DIR),
+        persist_directory=CHROMA_PERSIST_DIR,
         collection_name=COLLECTION_NAME
     )
-
-    vectordb.persist()
 
     return vectordb
 

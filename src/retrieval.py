@@ -4,9 +4,11 @@ Retrieval + LLM answer generation
 
 from typing import Dict, Any
 
-from langchain_openai import ChatOpenAI, OpenAIEmbeddings
-from langchain_community.vectorstores import Chroma
+from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_chroma import Chroma
 from langchain_core.documents import Document
+from langchain_community.llms import HuggingFacePipeline
+from transformers import pipeline as hf_pipeline
 
 from .config import (
     CHROMA_PERSIST_DIR,
@@ -19,10 +21,10 @@ from .config import (
 
 def load_vectorstore():
 
-    embeddings = OpenAIEmbeddings(model=EMBEDDING_MODEL)
+    embeddings = HuggingFaceEmbeddings(model_name=EMBEDDING_MODEL)
 
     vectordb = Chroma(
-        persist_directory=str(CHROMA_PERSIST_DIR),
+        persist_directory=CHROMA_PERSIST_DIR,
         embedding_function=embeddings,
         collection_name=COLLECTION_NAME
     )
@@ -31,13 +33,10 @@ def load_vectorstore():
 
 
 def retrieve(question: str):
-
     vectordb = load_vectorstore()
-
     retriever = vectordb.as_retriever(search_kwargs={"k": TOP_K})
-
-    docs = retriever.get_relevant_documents(question)
-
+    
+    docs = retriever.invoke(question) # this returns a list of Document objects containing the relevant chunks
     return docs
 
 
@@ -69,28 +68,28 @@ def format_context(docs: list[Document]):
 
 def generate_answer(question: str, context: str):
 
-    llm = ChatOpenAI(
+    pipeline = hf_pipeline(
+        "text-generation",
         model=LLM_MODEL,
-        temperature=0.2,
+        max_length=512,
     )
+    llm = HuggingFacePipeline(pipeline=pipeline)
 
     prompt = f"""
-You are a document analysis assistant.
+        You are a document analysis assistant.
 
-Answer the question using ONLY the provided document excerpts.
+        Answer the question using ONLY the provided document excerpts.
 
-Always cite the document name and page number.
+        Always cite the document name and page number.
 
-Context:
-{context}
+        Context:
+        {context}
 
-Question:
-{question}
-"""
+        Question:
+        {question}
+    """
 
-    response = llm.invoke(prompt)
-
-    return response.content
+    return llm.invoke(prompt)
 
 
 def query_documents(question: str) -> Dict[str, Any]:

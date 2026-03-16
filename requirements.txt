@@ -1,10 +1,20 @@
-fastmcp
-langchain
-langchain-community
-langchain-openai
-chromadb
-pymupdf
-python-dotenv
-tiktoken
-sentence-transformers
-openai
+# Core frameworks
+fastmcp>=0.2.10
+langchain>=0.2.10
+langchain-huggingface>=0.0.15
+langchain-chroma>=0.0.15
+
+# Vector DB
+chromadb>=0.4.0
+
+# Document processing
+pymupdf>=1.22.5
+langchain-text-splitters>=0.0.9
+
+# Embeddings & LLMs
+sentence-transformers>=2.2.2
+transformers>=4.36.0
+accelerate>=0.22.0
+
+# Environment
+python-dotenv>=1.0.0
